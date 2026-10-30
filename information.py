@@ -20,6 +20,9 @@ def analyze(path):
 
     frame = pd.read_csv(path)
 
+    # Filter out any reference rows or notes at the bottom of the CSV
+    frame = frame[~frame["PRESIDENT"].str.contains("Reference", na=False)].copy()
+
     # Converts times into datetime objects 
     # If date is invalud, it will be converted to NaT (Not a Time)
     frame["bday"] = pd.to_datetime(frame["BIRTH DATE"], errors="coerce")
@@ -39,21 +42,35 @@ def analyze(path):
         + (frame["find_dod"].dt.month - frame["bday"].dt.month)
     )
 
+    # Filter for only presidents who have a valid death date
+    deceased_frame = frame.dropna(subset=["dod"]).copy()
+
+    # Calculate days lived only for deceased presidents
+    deceased_frame["year_of_birth"] = deceased_frame["bday"].dt.year
+    deceased_frame["lived_days"] = (
+        deceased_frame["dod"] - deceased_frame["bday"]
+    ).dt.days
+    deceased_frame["lived_years"] = deceased_frame["lived_days"] / 365.25
+    deceased_frame["lived_months"] = (
+        (deceased_frame["dod"].dt.year - deceased_frame["bday"].dt.year) * 12
+        + (deceased_frame["dod"].dt.month - deceased_frame["bday"].dt.month)
+    )
+
     # Creates a new table of the 10 longest lived presidents with their birth year, years lived, and days lived (longest lived at the top)
-    longest_lived = frame.sort_values(by="lived_days", ascending=False).head(10)[
+    longest_lived = deceased_frame.sort_values(by="lived_days", ascending=False).head(10)[
         ["PRESIDENT", "year_of_birth", "lived_years", "lived_days"]
     ]
 
     print(longest_lived, "\n")
 
-    shortest_lived = frame.sort_values(by="lived_days", ascending=True).head(10)[
+    shortest_lived = deceased_frame.sort_values(by="lived_days", ascending=True).head(10)[
         ["PRESIDENT", "year_of_birth", "lived_years", "lived_days"]
     ]
 
     print(shortest_lived, "\n")
 
-    # Creates new table of days lived of presidents who already died (NaT values dropped)
-    days_lived_cleaned = frame["lived_days"].dropna()
+    # Use this cleaned/filtered series for your stats and histogram
+    days_lived_cleaned = deceased_frame["lived_days"]
 
     stats = {
         "Mean": days_lived_cleaned.mean(),
