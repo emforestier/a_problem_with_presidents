@@ -59,7 +59,7 @@ def analyze(path):
 
     print(shortest_lived, "\n")
 
-    # Use this cleaned/filtered series for your stats and histogram
+    # Cleaned and filtered series for the histogram by accounting for days lived only by deceased presidents
     days_lived_cleaned = deceased_frame["lived_days"].dropna()
 
     stats = {
