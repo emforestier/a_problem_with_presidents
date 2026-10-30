@@ -6,14 +6,15 @@
 # - NumPy library for numerical operations
 # - Pandas library for data manipulation and analysis
 
-from datetime import datetime
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Raw string to handle the backslashes in the file path
-president_path = r"C:\Users\fores\Downloads\a_problem_with_presidents\U.S. Presidents Birth and Death Information - Sheet1.csv"
+project_dir = Path(__file__).resolve().parent
+president_path = project_dir / "U.S. Presidents Birth and Death Information - Sheet1.csv"
 
 
 def analyze(path):
@@ -25,32 +26,21 @@ def analyze(path):
 
     # Converts times into datetime objects 
     # If date is invalud, it will be converted to NaT (Not a Time)
-    frame["bday"] = pd.to_datetime(frame["BIRTH DATE"], errors="coerce")
-    frame["dod"] = pd.to_datetime(frame["DEATH DATE"], errors="coerce")
-
-    today = pd.Timestamp(datetime.today().date())
-    # Fills the missing values in the column in the date of death (presidents still alive) with todays date
-    frame["find_dod"] = frame["dod"].fillna(today)
-
-    # Calculates the birth year, days lived, years lived, and months lived for each president
-    frame["year_of_birth"] = frame["bday"].dt.year
-    frame["lived_days"] = (frame["find_dod"] - frame["bday"]).dt.days
-    frame["lived_years"] = frame["lived_days"] / 365.25
-    # Calculation: Gets difference of years and multiplies by 12, then adds on leftover months by subtracting birth from death month
-    frame["lived_months"] = (
-        (frame["find_dod"].dt.year - frame["bday"].dt.year) * 12
-        + (frame["find_dod"].dt.month - frame["bday"].dt.month)
+    frame["bday"] = frame["BIRTH DATE"].map(
+        lambda value: pd.to_datetime(value, errors="coerce")
+    )
+    frame["dod"] = frame["DEATH DATE"].map(
+        lambda value: pd.to_datetime(value, errors="coerce")
     )
 
-    # Filter for only presidents who have a valid death date
-    deceased_frame = frame.dropna(subset=["dod"]).copy()
+    # Keep only presidents with valid birth and death dates
+    deceased_frame = frame.dropna(subset=["bday", "dod"]).copy()
 
-    # Calculate days lived only for deceased presidents
+    # Calculates the birth year, days lived, years lived, and months lived for each president
     deceased_frame["year_of_birth"] = deceased_frame["bday"].dt.year
-    deceased_frame["lived_days"] = (
-        deceased_frame["dod"] - deceased_frame["bday"]
-    ).dt.days
+    deceased_frame["lived_days"] = (deceased_frame["dod"] - deceased_frame["bday"]).dt.days
     deceased_frame["lived_years"] = deceased_frame["lived_days"] / 365.25
+    # Calculation: Gets difference of years and multiplies by 12, then adds on leftover months by subtracting birth from death month
     deceased_frame["lived_months"] = (
         (deceased_frame["dod"].dt.year - deceased_frame["bday"].dt.year) * 12
         + (deceased_frame["dod"].dt.month - deceased_frame["bday"].dt.month)
@@ -70,7 +60,7 @@ def analyze(path):
     print(shortest_lived, "\n")
 
     # Use this cleaned/filtered series for your stats and histogram
-    days_lived_cleaned = deceased_frame["lived_days"]
+    days_lived_cleaned = deceased_frame["lived_days"].dropna()
 
     stats = {
         "Mean": days_lived_cleaned.mean(),
@@ -98,7 +88,9 @@ def analyze(path):
     plt.grid(True, linestyle="--", alpha=0.5)
 
     plt.savefig(
-        "president_lifespan_distribution.png", dpi=300, bbox_inches="tight"
+        project_dir / "president_lifespan_distribution.png",
+        dpi=300,
+        bbox_inches="tight",
     )
 
     plt.show()
